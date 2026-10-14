@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python test.py)",
+      "Bash(python run.py --method dp --horizon 10)"
+    ]
+  }
+}

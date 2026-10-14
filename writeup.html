@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PA3 Writeup</title>
+<style>
+  @page { size: letter; margin: 0.8in; }
+  body { font-family: Georgia, "Times New Roman", serif; font-size: 11pt; line-height: 1.4; color: #111; max-width: 7in; margin: 0 auto; }
+  h1 { font-size: 20pt; margin-bottom: 2pt; }
+  .meta { color: #444; margin-bottom: 18pt; }
+  h2 { font-size: 15pt; margin-top: 22pt; border-bottom: 1px solid #999; padding-bottom: 2pt; }
+  h3 { font-size: 12.5pt; margin-top: 16pt; }
+  figure { margin: 10pt 0 14pt 0; page-break-inside: avoid; text-align: center; }
+  figure img { max-width: 100%; }
+  figure.tall img { max-height: 8.6in; }
+  figure.half img { max-width: 78%; }
+  figcaption { font-size: 9.5pt; color: #333; margin-top: 4pt; text-align: left; }
+  table { border-collapse: collapse; margin: 8pt 0 12pt 0; font-size: 10.5pt; }
+  th, td { border: 1px solid #999; padding: 3pt 8pt; text-align: center; }
+  th { background: #eee; }
+  code { font-family: Menlo, monospace; font-size: 9.5pt; }
+  .q { margin-top: 14pt; }
+  .q b { display: block; margin-bottom: 3pt; }
+  .pb { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>CS 4/5789 &mdash; Programming Project 3: Balloon Navigation</h1>
+<div class="meta">Alexander Braverman &middot; October 14, 2026</div>
+
+<p>All three methods were implemented in <code>DP.py</code>, <code>VI.py</code> and <code>Qlearning.py</code>; <code>python test.py</code> passes every check. All figures below were produced by <code>python visualize.py --experiment all --save-dir figures</code> with the default settings (seed 0). Throughout, the start state is s<sub>(1,0)</sub> and the goal is s<sub>(5,5)</sub>. Two routes to the goal matter for almost every result:</p>
+<ul>
+  <li><b>Risky route (7 steps):</b> DOWN, DOWN along the bottom row (two &minus;5 cells), then UP column 5. Undiscounted return &minus;5&minus;5&minus;1&minus;1&minus;1&minus;1+20 = <b>6</b>.</li>
+  <li><b>Safe route (14 steps):</b> UP column 1, across the top, DOWN column 3, then UP column 5. Thirteen &minus;1 steps then +20: undiscounted return <b>7</b>.</li>
+</ul>
+<p>Column 0 has no rightward wind anywhere, so a balloon that enters it can never leave; it is a trap worth &minus;1 per step forever.</p>
+
+<h2>6.1 Dynamic programming (finite horizon)</h2>
+
+<table>
+  <tr><th>H</th><th>V*<sub>0</sub>(s<sub>0</sub>)</th><th>Route from start</th></tr>
+  <tr><td>1</td><td>&minus;1</td><td>goal unreachable</td></tr>
+  <tr><td>3</td><td>&minus;3</td><td>goal unreachable</td></tr>
+  <tr><td>5</td><td>&minus;5</td><td>goal unreachable</td></tr>
+  <tr><td>7</td><td>6</td><td>risky (exactly fits)</td></tr>
+  <tr><td>9</td><td>6</td><td>risky</td></tr>
+  <tr><td>14</td><td>7</td><td>safe (first horizon it fits)</td></tr>
+</table>
+
+<figure class="tall">
+  <img src="figures/dp_horizon_sweep.png">
+  <figcaption><b>Figure 1.</b> V*<sub>0</sub> (left) and &pi;*<sub>0</sub> with the greedy trajectory from the start (right) for H &isin; {1, 3, 5, 7, 9}.</figcaption>
+</figure>
+
+<figure class="tall">
+  <img src="figures/dp_time_slices_H7.png">
+  <figcaption><b>Figure 2.</b> H = 7: time slices (V*<sub>t</sub>, &pi;*<sub>t</sub>) for t = 0, 1, 3, 5, 6, i.e. remaining horizon 7, 6, 4, 2, 1.</figcaption>
+</figure>
+
+<h2>6.2 Value iteration (infinite horizon, discounted)</h2>
+
+<table>
+  <tr><th>&gamma;</th><th>Iterations to tol = 0.01</th><th>V*(s<sub>0</sub>)</th><th>V*(column 0)</th><th>Route from start</th></tr>
+  <tr><td>0.9</td><td>45</td><td>&minus;1.66</td><td>&minus;9.9</td><td>risky</td></tr>
+  <tr><td>0.99</td><td>460</td><td>5.30</td><td>&minus;99.0</td><td>safe</td></tr>
+  <tr><td>0.999</td><td>4607</td><td>6.82</td><td>&minus;990.1</td><td>safe</td></tr>
+</table>
+
+<figure class="tall">
+  <img src="figures/vi_propagation_gamma0.9.png">
+  <figcaption><b>Figure 3.</b> &gamma; = 0.9, starting from Q = 0: V and greedy &pi; after 0, 1, 2, 5, 10, 25 iterations and at convergence (45). Value information spreads outward from the goal one cell-layer per Bellman update.</figcaption>
+</figure>
+
+<figure class="tall">
+  <img src="figures/vi_discount_sweep.png">
+  <figcaption><b>Figure 4.</b> Converged V* and &pi;* (with greedy trajectory) for &gamma; &isin; {0.9, 0.99, 0.999}.</figcaption>
+</figure>
+
+<figure class="half">
+  <img src="figures/vi_iterations_vs_discount.png">
+  <figcaption><b>Figure 5.</b> Iterations required to reach the same tolerance versus &gamma;.</figcaption>
+</figure>
+
+<h2>6.3 Q-learning</h2>
+
+<p>Settings: &gamma; = 0.9 (so Q*<sub>VI</sub> is the 45-iteration solution above), 1000 episodes, &alpha; = 0.5, Q initialised to 0. Only &epsilon; is varied.</p>
+
+<table>
+  <tr><th>&epsilon;</th><th>final E<sub>k</sub> = ||Q<sub>k</sub> &minus; Q*<sub>VI</sub>||<sub>&infin;</sub> on S<sub>reach</sub></th><th>final policy agreement A<sub>k</sub></th><th>avg return, last 50 episodes</th><th>greedy route from start</th></tr>
+  <tr><td>0</td><td>14.30</td><td>95%</td><td>7.00</td><td>safe (not optimal for &gamma;=0.9)</td></tr>
+  <tr><td>0.1</td><td>3.11</td><td>100%</td><td>4.80</td><td>risky (= VI)</td></tr>
+  <tr><td>0.5</td><td>0.00</td><td>100%</td><td>&minus;4.82</td><td>risky (= VI)</td></tr>
+</table>
+
+<figure class="half">
+  <img src="figures/ql_learning_curves.png">
+  <figcaption><b>Figure 6.</b> Undiscounted return per episode (moving average, window 50) during training.</figcaption>
+</figure>
+
+<figure class="half">
+  <img src="figures/ql_q_error.png">
+  <figcaption><b>Figure 7.</b> E<sub>k</sub>, the max-norm distance between the learned Q and Q*<sub>VI</sub> over the reachable states.</figcaption>
+</figure>
+
+<figure class="half">
+  <img src="figures/ql_policy_agreement.png">
+  <figcaption><b>Figure 8.</b> A<sub>k</sub>, the fraction of reachable non-goal states whose greedy action matches &pi;*<sub>VI</sub>.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/ql_qstar_vi.png">
+  <figcaption><b>Figure 9.</b> Q*<sub>VI</sub> for &gamma; = 0.9, the reference the learned Q-functions are compared to.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/ql_q_learned_eps0.1.png">
+  <figcaption><b>Figure 10.</b> Q learned with &epsilon; = 0.1 after 1000 episodes.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/ql_policy_eps0.0.png">
+  <figcaption><b>Figure 11.</b> Learned greedy policy, &epsilon; = 0.</figcaption>
+</figure>
+<figure>
+  <img src="figures/ql_policy_eps0.1.png">
+  <figcaption><b>Figure 12.</b> Learned greedy policy, &epsilon; = 0.1.</figcaption>
+</figure>
+<figure>
+  <img src="figures/ql_policy_eps0.5.png">
+  <figcaption><b>Figure 13.</b> Learned greedy policy, &epsilon; = 0.5.</figcaption>
+</figure>
+
+<h2 class="pb">7. Discussion</h2>
+
+<div class="q">
+<b>1. Finite horizon and time dependence.</b>
+<p>The shortest path from the start to the goal takes 7 steps, so for H &isin; {1, 3, 5} the goal is unreachable from s<sub>0</sub> and V*<sub>0</sub>(s<sub>0</sub>) = &minus;H exactly: the balloon pays &minus;1 per step no matter what, and the only thing the policy can still do is avoid the &minus;5 cells, which is why it points UP away from the bottom row. As H grows, the set of states with positive value spreads outward from the goal by one more "layer" of reachability per unit of horizon (Figure 1), and the value at a state is simply the best total reward collectable in the remaining steps, so V*<sub>0</sub> is non-decreasing in H. At H = 7 the risky route fits exactly and V*<sub>0</sub>(s<sub>0</sub>) jumps from &minus;5 to 6; it stays at 6 for H = 9 because the better safe route needs 14 steps, and only at H = 14 does the policy switch to it (V*<sub>0</sub>(s<sub>0</sub>) = 7). The time slices in Figure 2 show the same state getting different actions as time runs out: at t = 0 the start state goes DOWN to begin the risky route, but at t = 1 (only 6 steps left) the goal can no longer be reached from the start, so &pi;*<sub>1</sub>(s<sub>0</sub>) flips to UP to avoid the penalty cells. When the remaining horizon is too short, the balloon stops trying to reach the goal and just minimises the cost of the remaining steps.</p>
+</div>
+
+<div class="q">
+<b>2. Discounting and value propagation.</b>
+<p>&gamma; sets how far ahead the agent effectively looks. The trapped column 0 makes this concrete: its value is &minus;1/(1&minus;&gamma;) = &minus;10, &minus;100, &minus;1000 for the three discounts. It also changes the optimal policy. The safe route's +20 arrives after 13 steps, so it is worth 20&gamma;<sup>13</sup> at the start: about 5.1 for &gamma; = 0.9 but 17.6 for &gamma; = 0.99. With &gamma; = 0.9 that is not enough to beat the shorter risky route, so VI takes the &minus;5 cells (V*(s<sub>0</sub>) = &minus;1.66), whereas for &gamma; &ge; 0.99 the long safe route wins (5.30 and 6.82, approaching the undiscounted 7). The number of iterations grows roughly like 1/(1&minus;&gamma;): 45, 460, 4607 (Figure 5). This is because the Bellman optimality operator is a &gamma;-contraction, so the error shrinks by a factor &gamma; per sweep and reaching a fixed tolerance takes k &asymp; log(tol/err<sub>0</sub>)/log(&gamma;) &asymp; const/(1&minus;&gamma;) updates. Figure 3 shows the propagation mechanism: starting from Q = 0, each update pushes information about the goal one transition further outward, so after k updates only states within k steps of the goal have "seen" it.</p>
+</div>
+
+<div class="q">
+<b>3. Dynamic programming versus value iteration.</b>
+<p>For a long enough horizon the two agree: the DP policy &pi;*<sub>0</sub> for H = 14 is identical to the VI policy for &gamma; = 0.999 (both take the safe route; V*<sub>0</sub>(s<sub>0</sub>) = 7 versus V* = 6.82), and both share the same structure everywhere: climb column 5, descend columns 3 and 4 to catch the rightward wind at row 1, and treat column 0 as a dead end. They need not be identical, for two reasons. First, the objectives differ: DP maximises an undiscounted sum over exactly H steps, while VI maximises a discounted infinite sum. The horizon is a hard cutoff (a route either fits or it does not, which is why H = 9 still picks the risky route) while discounting is a soft, geometric penalty on delay; as &gamma; &rarr; 1 and H &rarr; &infin; these converge, but for any finite H and &gamma; &lt; 1 they can rank routes differently. Second, the DP policy is time-varying, &pi;*<sub>t</sub> depends on the remaining steps, whereas the VI policy is stationary; DP's &pi;*<sub>0</sub> happens to match VI only because at t = 0 the remaining horizon is large.</p>
+</div>
+
+<div class="q">
+<b>4. Value iteration versus Q-learning.</b>
+<p>Value iteration has the model. Its update Q(s,a) &larr; R(s,a) + &gamma; &Sigma;<sub>s'</sub> P(s'|s,a) max<sub>a'</sub> Q(s',a') uses the exact reward and the exact next-state distribution, so in one sweep it can evaluate every (s,a) pair, including states the balloon would never visit, and it needs no interaction at all. Q-learning only has <code>reset()</code> and <code>step()</code>. It never sees P or R; it sees one sampled transition (s<sub>t</sub>, a<sub>t</sub>, r<sub>t</sub>, s<sub>t+1</sub>) at a time, and its target r<sub>t</sub> + &gamma; max<sub>a'</sub> Q(s<sub>t+1</sub>,a') is a single-sample estimate of the expectation VI computes exactly (the learning rate &alpha; averages these samples over time). Because the sample comes from actually being in s<sub>t</sub> and taking a<sub>t</sub>, Q-learning can only update the pair it just visited. To learn Q for every state-action pair it therefore has to physically reach every state and try every action there, which is why it needs many episodes and an exploratory behaviour policy, and why the handout evaluates it only on S<sub>reach</sub>: unvisited rows of the Q-table stay at their initial value (the untouched cells in Figures 11&ndash;13 still show the default UP).</p>
+</div>
+
+<div class="q">
+<b>5. Exploration in Q-learning.</b>
+<p>More exploration makes the learned Q approach Q*<sub>VI</sub> faster and more completely, at the cost of worse return while training. With &epsilon; = 0.5 every reachable (s,a) pair is tried often, so E<sub>k</sub> falls to 0 and A<sub>k</sub> reaches 100% within about 75 episodes (Figures 7&ndash;8), but half of the actions are random, so the behaviour return hovers around &minus;5 (Figure 6). With &epsilon; = 0.1 the greedy policy matches VI after about 220 episodes, but E<sub>k</sub> plateaus at 3.1 because pairs off the greedy path are visited rarely and their values are never refined; the return during training (&asymp;4.8) is close to the optimal 6, degraded only by the occasional random step. With &epsilon; = 0 the agent is purely greedy. Starting from Q = 0, ties break to UP, so the first trajectory climbs column 1, finds the safe route, and earns 7; from then on every Q-value along that path is positive and every alternative is still 0, so the agent repeats the same path forever. It never tries DOWN at the start, so it never discovers that under &gamma; = 0.9 the risky route is actually better: E<sub>k</sub> is stuck at 14.3, A<sub>k</sub> at 95% (the start state disagrees), and the learning curve is a flat line at 7. The flat line looks like the best of the three in Figure 6, but that is the undiscounted return of a suboptimal policy. The problem with &epsilon; = 0 is exactly this: without exploration Q-learning can lock onto the first policy that works and has no mechanism to correct it, so it is not guaranteed to converge to Q*.</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,91 @@
+Using device: cpu
+================================================================
+ Environment
+================================================================
+Saved figures/environment_wind.png
+================================================================
+ Section 6.1 — Dynamic programming
+================================================================
+DP H=1: V*_0(s0) = -1.00
+DP H=1: trajectory (i,j)   = [(1, 0), (1, 1)]
+DP H=1: actions            = ['UP']
+DP H=1: rewards            = [-1.0]
+Saved figures/dp_traj_H1.gif
+DP H=3: V*_0(s0) = -3.00
+DP H=3: trajectory (i,j)   = [(1, 0), (1, 1), (1, 2), (1, 3)]
+DP H=3: actions            = ['UP', 'UP', 'UP']
+DP H=3: rewards            = [-1.0, -1.0, -1.0]
+Saved figures/dp_traj_H3.gif
+DP H=5: V*_0(s0) = -5.00
+DP H=5: trajectory (i,j)   = [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 5)]
+DP H=5: actions            = ['UP', 'UP', 'UP', 'UP', 'UP']
+DP H=5: rewards            = [-1.0, -1.0, -1.0, -1.0, -1.0]
+Saved figures/dp_traj_H5.gif
+DP H=7: V*_0(s0) = 6.00
+DP H=7: trajectory (i,j)   = [(1, 0), (2, 0), (3, 0), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+DP H=7: actions            = ['DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP', 'UP']
+DP H=7: rewards            = [-5.0, -5.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/dp_traj_H7.gif
+DP H=9: V*_0(s0) = 6.00
+DP H=9: trajectory (i,j)   = [(1, 0), (2, 0), (3, 0), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+DP H=9: actions            = ['DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP', 'UP']
+DP H=9: rewards            = [-5.0, -5.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/dp_traj_H9.gif
+Saved figures/dp_horizon_sweep.png
+Saved figures/dp_time_slices_H7.png
+DP experiments wall time: 2.79s
+================================================================
+ Section 6.2 — Value iteration
+================================================================
+Saved figures/vi_propagation_gamma0.9.png
+VI γ=0.9: converged in 45 iters (ε=9.70e-03), V*(s0)=-1.66
+VI γ=0.9: iters=45, ε=9.70e-03, V*(s0)=-1.66
+VI discount=0.9: trajectory (i,j)   = [(1, 0), (2, 0), (3, 0), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+VI discount=0.9: actions            = ['DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP', 'UP']
+VI discount=0.9: rewards            = [-5.0, -5.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/vi_traj_gamma0.9.gif
+VI γ=0.99: iters=460, ε=9.92e-03, V*(s0)=5.30
+VI discount=0.99: trajectory (i,j)   = [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 5), (3, 5), (3, 4), (3, 3), (3, 2), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+VI discount=0.99: actions            = ['UP', 'UP', 'UP', 'UP', 'UP', 'UP', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP']
+VI discount=0.99: rewards            = [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/vi_traj_gamma0.99.gif
+VI γ=0.999: iters=4607, ε=9.95e-03, V*(s0)=6.82
+VI discount=0.999: trajectory (i,j)   = [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 5), (3, 5), (3, 4), (3, 3), (3, 2), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+VI discount=0.999: actions            = ['UP', 'UP', 'UP', 'UP', 'UP', 'UP', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP']
+VI discount=0.999: rewards            = [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/vi_traj_gamma0.999.gif
+Saved figures/vi_discount_sweep.png
+Saved figures/vi_iterations_vs_discount.png
+VI experiments wall time: 3.20s
+================================================================
+ Section 6.3 — Q-learning
+================================================================
+VI reference (γ=0.9): 45 iters, ε=9.70e-03
+Q-learning ε=0.0: 1000 episodes in 0.20s, final ||Q-Q*||_∞=14.300, agreement=95%, avg return (last 50)=7.00
+Saved figures/ql_policy_eps0.0.png
+QL epsilon=0.0: trajectory (i,j)   = [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 5), (3, 5), (3, 4), (3, 3), (3, 2), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+QL epsilon=0.0: actions            = ['UP', 'UP', 'UP', 'UP', 'UP', 'UP', 'DOWN', 'DOWN', 'DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP']
+QL epsilon=0.0: rewards            = [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/ql_traj_eps0.0.gif
+Q-learning ε=0.1: 1000 episodes in 0.13s, final ||Q-Q*||_∞=3.107, agreement=100%, avg return (last 50)=4.80
+Saved figures/ql_policy_eps0.1.png
+QL epsilon=0.1: trajectory (i,j)   = [(1, 0), (2, 0), (3, 0), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+QL epsilon=0.1: actions            = ['DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP', 'UP']
+QL epsilon=0.1: rewards            = [-5.0, -5.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/ql_traj_eps0.1.gif
+Q-learning ε=0.5: 1000 episodes in 0.23s, final ||Q-Q*||_∞=0.000, agreement=100%, avg return (last 50)=-4.82
+Saved figures/ql_policy_eps0.5.png
+QL epsilon=0.5: trajectory (i,j)   = [(1, 0), (2, 0), (3, 0), (4, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+QL epsilon=0.5: actions            = ['DOWN', 'DOWN', 'UP', 'UP', 'UP', 'UP', 'UP']
+QL epsilon=0.5: rewards            = [-5.0, -5.0, -1.0, -1.0, -1.0, -1.0, 20.0]
+Saved figures/ql_traj_eps0.5.gif
+Saved figures/ql_learning_curves.png
+Saved figures/ql_q_error.png
+Saved figures/ql_policy_agreement.png
+Saved figures/ql_qstar_vi.png
+Saved figures/ql_q_learned_eps0.1.png
+Q-learning experiments wall time: 3.07s
+================================================================
+ All Section 6 experiments finished in 9.30s
+ Figures written under: figures/
+================================================================
