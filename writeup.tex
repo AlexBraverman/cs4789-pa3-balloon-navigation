@@ -31,15 +31,19 @@ default settings (seed 0). Throughout, the start state is $s_{(1,0)}$ and
 the goal is $s_{(5,5)}$. Two routes to the goal matter for almost every
 result:
 \begin{itemize}[nosep]
-  \item \textbf{Risky route (7 steps):} DOWN, DOWN along the bottom row
-    (two $-5$ cells), then UP column 5. Undiscounted return
+  \item \textbf{Risky route (7 steps):} DOWN twice, so the rightward wind
+    along the bottom row carries the balloon through two $-5$ cells to
+    $(3,0)$; then UP five times, with the rightward winds at $(3,1)$ and
+    $(4,2)$ pushing it into column 5. Undiscounted return
     $-5-5-1-1-1-1+20 = \mathbf{6}$.
   \item \textbf{Safe route (14 steps):} UP column 1, across the top, DOWN
-    column 3, then UP column 5. Thirteen $-1$ steps then $+20$:
+    column 3 until the wind at $(3,1)$ pushes it to $(4,1)$, then UP into
+    column 5 and up to the goal. Thirteen $-1$ steps then $+20$:
     undiscounted return $\mathbf{7}$.
 \end{itemize}
 Column 0 has no rightward wind anywhere, so a balloon that enters it can
-never leave; it is a trap worth $-1$ per step forever.
+never leave; it is a trap worth $-1$ per step forever. (It is also
+unreachable from the start, so Q-learning never sees it.)
 
 %------------------------------------------------------------------
 \section*{6.1 Dynamic programming (finite horizon)}
@@ -204,57 +208,66 @@ The shortest path from the start to the goal takes 7 steps, so for
 $H \in \{1,3,5\}$ the goal is unreachable from $s_0$ and
 $V^*_0(s_0) = -H$ exactly: the balloon pays $-1$ per step no matter what,
 and the only thing the policy can still do is avoid the $-5$ cells, which
-is why it points UP away from the bottom row. As $H$ grows, the set of
-states with positive value spreads outward from the goal by one more
-``layer'' of reachability per unit of horizon
-(Figure~\ref{fig:dp-sweep}), and the value at a state is simply the best
-total reward collectable in the remaining steps, so $V^*_0$ is
-non-decreasing in $H$. At $H=7$ the risky route fits exactly and
-$V^*_0(s_0)$ jumps from $-5$ to $6$; it stays at $6$ for $H=9$ because the
-better safe route needs 14 steps, and only at $H=14$ does the policy switch
-to it ($V^*_0(s_0) = 7$). The time slices in Figure~\ref{fig:dp-slices}
-show the same state getting different actions as time runs out: at $t=0$
-the start state goes DOWN to begin the risky route, but at $t=1$ (only 6
-steps left) the goal can no longer be reached from the start, so
-$\pi^*_1(s_0)$ flips to UP to avoid the penalty cells. When the remaining
-horizon is too short, the balloon stops trying to reach the goal and just
-minimises the cost of the remaining steps.
+is why it points UP away from the bottom row. $V^*_0(s_0)$ is therefore
+not monotone in $H$. It \emph{falls} ($-1,-3,-5$) while the horizon is too
+short, because each extra step is one more forced $-1$, then jumps to $6$
+at $H=7$, the first horizon in which the risky route fits. It stays at $6$
+for $H=9$ because the goal is absorbing (nothing more is earned after
+arrival) and the better safe route needs 14 steps; only at $H=14$ does
+$\pi^*_0$ switch to it, giving $V^*_0(s_0) = 7$. Column 0, which can never
+reach the goal, keeps falling as $-H$ for every $H$.
+Figure~\ref{fig:dp-sweep} shows the same thing spatially: the set of
+states with positive value grows outward from the goal by one more layer
+per unit of horizon, and everything outside that set is worth $-H$. The
+time slices in Figure~\ref{fig:dp-slices} show the same state getting
+different actions as time runs out: at $t=0$ (7 steps left) the start
+state goes DOWN to begin the risky route, but at $t=1$ (6 left) the goal
+can no longer be reached from the start, so $\pi^*_1(s_0) = $ UP to avoid
+the penalty cells. When the remaining horizon is too short, the balloon
+stops trying to reach the goal and just minimises the cost of the
+remaining steps.
 
 \paragraph{2. Discounting and value propagation.}
 $\gamma$ sets how far ahead the agent effectively looks. The trapped
-column 0 makes this concrete: its value is $-1/(1-\gamma) = -10, -100,
--1000$ for the three discounts. It also changes the optimal policy. The
-safe route's $+20$ arrives after 13 steps, so it is worth $20\gamma^{13}$
-at the start: about $5.1$ for $\gamma = 0.9$ but $17.6$ for $\gamma =
-0.99$. With $\gamma = 0.9$ that is not enough to beat the shorter risky
-route, so VI takes the $-5$ cells ($V^*(s_0) = -1.66$), whereas for
+column 0 makes this concrete: its exact value is
+$-1/(1-\gamma) = -10, -100, -1000$. (VI reports $-9.9, -99.0, -990.1$.
+Stopping when the change in $Q$ is below $0.01$ leaves an error of up to
+$0.01/(1-\gamma)$ in states whose returns are still accumulating, i.e.\ up
+to 10 at $\gamma = 0.999$; near the goal, where the absorbing state pins
+values down, the estimates are far more accurate.) $\gamma$ also changes
+the optimal policy. The safe route's $+20$ arrives after 13 steps, so it
+is worth $20\gamma^{13}$ at the start: about $5.1$ for $\gamma = 0.9$ but
+$17.6$ for $\gamma = 0.99$. At $\gamma = 0.9$ the two actions at the start
+are worth $Q^*(s_0,\text{DOWN}) = -1.66$ (risky) versus
+$Q^*(s_0,\text{UP}) = -2.37$ (safe), so VI takes the $-5$ cells; for
 $\gamma \ge 0.99$ the long safe route wins ($5.30$ and $6.82$, approaching
 the undiscounted $7$). The number of iterations grows roughly like
-$1/(1-\gamma)$: $45, 460, 4607$ (Figure~\ref{fig:vi-iters}). This is
-because the Bellman optimality operator is a $\gamma$-contraction, so the
-error shrinks by a factor $\gamma$ per sweep and reaching a fixed
-tolerance takes $k \approx \log(\mathrm{tol}/\mathrm{err}_0)/\log\gamma
-\approx \mathrm{const}/(1-\gamma)$ updates. Figure~\ref{fig:vi-prop} shows
-the propagation mechanism: starting from $Q=0$, each update pushes
-information about the goal one transition further outward, so after $k$
-updates only states within $k$ steps of the goal have ``seen'' it.
+$1/(1-\gamma)$: $45, 460, 4607$ (Figure~\ref{fig:vi-iters}). The Bellman
+optimality operator is a $\gamma$-contraction, so the error shrinks by a
+factor $\gamma$ per sweep and reaching a fixed tolerance takes
+$k \approx \log(\mathrm{tol}/\mathrm{err}_0)/\log\gamma \approx
+\mathrm{const}/(1-\gamma)$ updates. Figure~\ref{fig:vi-prop} shows the
+propagation mechanism: starting from $Q=0$, each update pushes information
+about the goal one transition further outward, so after $k$ updates only
+states within $k$ steps of the goal have ``seen'' it.
 
 \paragraph{3. Dynamic programming versus value iteration.}
 For a long enough horizon the two agree: the DP policy $\pi^*_0$ for
 $H=14$ is identical to the VI policy for $\gamma = 0.999$ (both take the
 safe route; $V^*_0(s_0) = 7$ versus $V^* = 6.82$), and both share the same
-structure everywhere: climb column 5, descend columns 3 and 4 to catch the
-rightward wind at row 1, and treat column 0 as a dead end. They need not be
-identical, for two reasons. First, the objectives differ: DP maximises an
-undiscounted sum over exactly $H$ steps, while VI maximises a discounted
-infinite sum. The horizon is a hard cutoff (a route either fits or it does
-not, which is why $H=9$ still picks the risky route) while discounting is
-a soft, geometric penalty on delay; as $\gamma \to 1$ and $H \to \infty$
-these converge, but for any finite $H$ and $\gamma < 1$ they can rank
-routes differently. Second, the DP policy is time-varying, $\pi^*_t$
-depends on the remaining steps, whereas the VI policy is stationary; DP's
-$\pi^*_0$ happens to match VI only because at $t=0$ the remaining horizon
-is large.
+structure everywhere: climb column 5, descend columns 3 and 4 so that the
+rightward winds at $(3,1)$ and $(4,2)$ carry the balloon into column 5,
+and treat column 0 as a dead end. They need not be identical, for two
+reasons. First, the objectives differ: DP maximises an undiscounted sum
+over exactly $H$ steps, while VI maximises a discounted infinite sum. The
+horizon is a hard cutoff (a route either fits or it does not, which is why
+$H=9$ still picks the risky route) while discounting is a soft, geometric
+penalty on delay; as $\gamma \to 1$ and $H \to \infty$ these converge, but
+for any finite $H$ and $\gamma < 1$ they can rank routes differently.
+Second, the DP policy is time-varying, $\pi^*_t$ depends on the remaining
+steps, whereas the VI policy is stationary; DP's $\pi^*_0$ happens to
+match VI only because at $t=0$ the remaining horizon is large (already at
+$t=1$, with 13 steps left, DP's action at the start flips back to DOWN).
 
 \paragraph{4. Value iteration versus Q-learning.}
 Value iteration has the model. Its update
@@ -281,27 +294,35 @@ Figures~\ref{fig:ql-pol0}--\ref{fig:ql-pol05} still show the default UP).
 \paragraph{5. Exploration in Q-learning.}
 More exploration makes the learned $Q$ approach $\QVI$ faster and more
 completely, at the cost of worse return while training. With
-$\epsilon = 0.5$ every reachable $(s,a)$ pair is tried often, so $E_k$
-falls to 0 and $A_k$ reaches 100\% within about 75 episodes
-(Figures~\ref{fig:ql-error}--\ref{fig:ql-agree}), but half of the actions
-are random, so the behaviour return hovers around $-5$
+$\epsilon = 0.5$ every reachable $(s,a)$ pair is tried often, so $A_k$
+reaches 100\% within about 50 episodes and $E_k$ is essentially 0 by about
+150 (Figures~\ref{fig:ql-error}--\ref{fig:ql-agree}), but half of the
+actions are random, so the behaviour return hovers around $-5$
 (Figure~\ref{fig:ql-curves}). With $\epsilon = 0.1$ the greedy policy
-matches VI after about 220 episodes, but $E_k$ plateaus at $3.1$ because
-pairs off the greedy path are visited rarely and their values are never
-refined; the return during training ($\approx 4.8$) is close to the
+matches VI after about 220 episodes, but $E_k$ plateaus at $3.1$: the
+worst entry is $((5,0),\text{DOWN})$, an action the greedy policy never
+takes, so it is updated only on rare random steps (learned $0.6$ versus
+$Q^* = 3.7$). The return during training ($\approx 4.8$) is close to the
 optimal 6, degraded only by the occasional random step. With
-$\epsilon = 0$ the agent is purely greedy. Starting from $Q = 0$, ties
-break to UP, so the first trajectory climbs column 1, finds the safe
-route, and earns 7; from then on every Q-value along that path is positive
-and every alternative is still 0, so the agent repeats the same path
-forever. It never tries DOWN at the start, so it never discovers that
-under $\gamma = 0.9$ the risky route is actually better: $E_k$ is stuck at
-$14.3$, $A_k$ at 95\% (the start state is the one disagreement), and the
-learning curve is a flat line at 7. The flat line looks like the best of
-the three in Figure~\ref{fig:ql-curves}, but that is the undiscounted
-return of a suboptimal policy. The problem with $\epsilon = 0$ is exactly
-this: without exploration Q-learning can lock onto the first policy that
-works and has no mechanism to correct it, so it is not guaranteed to
-converge to $Q^*$.
+$\epsilon = 0$ the agent is purely greedy, which is not quite the same as
+never exploring: because every step costs $-1$, a tried action's estimate
+drops below the untried action's initial value of 0, so early on the agent
+does wander (its first episode takes 22 steps, and it visits the whole
+bottom row). The problem is that an estimate is only refreshed while the
+greedy policy keeps choosing that action. The agent tried DOWN at the
+start while the bottom-row values were still poor, received a bad sampled
+return, and $Q(s_0,\text{DOWN})$ settled at $-7.4$ (its true value is
+$-1.66$); from then on UP ($-2.37$) looked better, DOWN was never selected
+again, and the stale estimate was never corrected even after the
+bottom-row values improved. From about episode 15 onward the agent repeats
+the safe route forever: $A_k$ is stuck at 95\% (the start state is the one
+disagreement), $E_k$ at $14.3$ ($Q^*((5,4),\text{DOWN}) = 14.3$, but that
+pair is never tried, so its entry stays at 0), and the learning curve is a
+flat line at 7. That line looks like the best of the three in
+Figure~\ref{fig:ql-curves}, but it is the undiscounted return of a policy
+that is suboptimal for $\gamma = 0.9$. This is the general problem with
+$\epsilon = 0$: without exploration Q-learning has no mechanism to revisit
+and correct a pessimistic estimate, so it can converge to the wrong
+policy.
 
 \end{document}
